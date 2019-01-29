@@ -1,4 +1,4 @@
-package com.max.reactive.user;
+package com.max.reactive.profile;
 
 import io.vertx.rxjava.core.AbstractVerticle;
 import io.vertx.rxjava.core.http.HttpServer;
@@ -8,14 +8,14 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.atomic.LongAdder;
 
-public class MainRxVerticle extends AbstractVerticle {
+public class ProfileRxVerticle extends AbstractVerticle {
 
     private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private static final String VERTEX_NAME = MainRxVerticle.class.getCanonicalName();
+    private static final String VERTEX_NAME = ProfileRxVerticle.class.getCanonicalName();
 
     private static final LongAdder REQUESTS_COUNTER = new LongAdder();
 
-    private static final int PORT = 7070;
+    private static final int PORT = 9090;
 
     @Override
     public void start() {
@@ -24,7 +24,7 @@ public class MainRxVerticle extends AbstractVerticle {
 
         server.requestStream().toObservable().subscribe(request -> {
             REQUESTS_COUNTER.increment();
-            request.response().end("Hello from Vert.x with id " + REQUESTS_COUNTER +
+            request.response().end("Profile " + REQUESTS_COUNTER +
                                            " [" + Thread.currentThread().getName() + "]");
         });
 

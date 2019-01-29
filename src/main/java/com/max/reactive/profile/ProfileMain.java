@@ -1,4 +1,4 @@
-package com.max.reactive.user;
+package com.max.reactive.profile;
 
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
@@ -6,18 +6,18 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-final class AppMain {
+final class ProfileMain {
 
     private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private AppMain() {
+    private ProfileMain() {
         final Vertx vertex = Vertx.vertx();
-        vertex.deployVerticle(new MainRxVerticle());
+        vertex.deployVerticle(new ProfileRxVerticle());
     }
 
     public static void main(String[] args) {
         try {
-            new AppMain();
+            new ProfileMain();
         }
         catch (Exception ex) {
             LOG.error("Error occurred", ex);

@@ -16,7 +16,7 @@
         <mockito.version>2.21.0</mockito.version>
         <rxjava.version>1.2.7</rxjava.version>
         <vertx.version>3.4.1</vertx.version>
-        <vertx.verticle>com.max.reactive.user.MainRxVerticle</vertx.verticle>
+        <vertx.verticle>com.max.reactive.profile.ProfileRxVerticle</vertx.verticle>
     </properties>
 
     <build>
