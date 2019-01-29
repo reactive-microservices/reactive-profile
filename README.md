@@ -1,4 +1,4 @@
-# Reactive microservice example using Vert.x and RxJava.
+# Reactive profile microservice example using Vert.x and RxJava.
 
 
 ## Unit tests.
@@ -21,12 +21,12 @@ mvn compile vertx:run
 ```
 Using fat jar file:
 ```
-java -jar target/reactive-microservice-1.0.0-SNAPSHOT.jar
+java -jar target/reactive-profile-1.0.0-SNAPSHOT.jar
 ```
 
 Check service running:
 ```
-curl localhost:7070
+curl localhost:9090
 ```
 
 ## Related project

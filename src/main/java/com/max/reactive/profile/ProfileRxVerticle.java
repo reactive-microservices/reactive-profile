@@ -24,8 +24,7 @@ public class ProfileRxVerticle extends AbstractVerticle {
 
         server.requestStream().toObservable().subscribe(request -> {
             REQUESTS_COUNTER.increment();
-            request.response().end("Profile " + REQUESTS_COUNTER +
-                                           " [" + Thread.currentThread().getName() + "]");
+            request.response().end("Profile-" + REQUESTS_COUNTER + ", " + Thread.currentThread().getName() + "\n");
         });
 
         server.rxListen(PORT).subscribe();
