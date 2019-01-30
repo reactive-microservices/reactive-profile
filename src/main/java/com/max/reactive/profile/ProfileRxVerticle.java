@@ -37,15 +37,17 @@ public class ProfileRxVerticle extends AbstractVerticle {
         userClient = WebClient.create(vertx);
         Router router = Router.router(vertx);
 
-        router.get("/profile/:id").handler(this::callUserService);
+        router.get("/profile/:id").handler(this::gatherProfileInformation);
 
-        vertx.createHttpServer().requestHandler(router::accept).listen(PORT);
+        vertx.createHttpServer().
+                requestHandler(router::accept).
+                listen(PORT);
 
         LOG.info("{} started at port {}", VERTEX_NAME, PORT);
     }
 
 
-    private void callUserService(RoutingContext ctx) {
+    private void gatherProfileInformation(RoutingContext ctx) {
 
         String profileId = ctx.pathParam("id");
         String userName = profileIdToUsername.get(profileId);
@@ -53,7 +55,7 @@ public class ProfileRxVerticle extends AbstractVerticle {
         if( userName == null ){
 
             JsonObject errorData = new JsonObject();
-            errorData.put("message", "Can't link profile id " + profileId + " to any user name.");
+            errorData.put("message", "Can't find profile with id " + profileId + ".");
 
             ctx.response().setStatusCode(404).
                     putHeader(HttpHeaders.CONTENT_TYPE, "application/json").
@@ -75,6 +77,17 @@ public class ProfileRxVerticle extends AbstractVerticle {
                         end(errorData.encode());
             }
             else {
+
+                if( asyncResp.result().statusCode() != 200 ){
+
+                    JsonObject errorData = new JsonObject();
+                    errorData.put("message", asyncResp.result().body().getValue("message"));
+
+                    ctx.response().
+                            setStatusCode(500).
+                            putHeader(HttpHeaders.CONTENT_TYPE, "application/json").
+                            end(errorData.encode());
+                }
 
                 JsonObject userData = asyncResp.result().body();
 
