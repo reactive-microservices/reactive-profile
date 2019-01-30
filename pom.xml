@@ -209,15 +209,23 @@
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>io.vertx</groupId>-->
+            <!--<artifactId>vertx-rx-java</artifactId>-->
+        <!--</dependency>-->
         <dependency>
             <groupId>io.vertx</groupId>
-            <artifactId>vertx-rx-java</artifactId>
+            <artifactId>vertx-web</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.reactivex</groupId>
-            <artifactId>rxjava</artifactId>
-            <version>${rxjava.version}</version>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-web-client</artifactId>
         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>io.reactivex</groupId>-->
+            <!--<artifactId>rxjava</artifactId>-->
+            <!--<version>${rxjava.version}</version>-->
+        <!--</dependency>-->
 
         <!-- Logger -->
         <dependency>
