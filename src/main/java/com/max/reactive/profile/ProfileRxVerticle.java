@@ -62,8 +62,12 @@ public class ProfileRxVerticle extends AbstractVerticle {
 
         Observable.from(allUserNames).
                 map(singleUserName -> userClient.get(7070, "localhost", "/user/" + singleUserName).as(BodyCodec.jsonObject())).
-                flatMap(httpReq -> httpReq.rxSend().map(HttpResponse::body).toObservable()).
-                reduce(new JsonArray(), JsonArray::add).
+                flatMap(httpReq ->
+                                httpReq.rxSend().
+                                        subscribeOn(Schedulers.io()).
+                                        map(HttpResponse::body).
+                                        toObservable()).
+                collect(JsonArray::new, JsonArray::add).
                 map(usersArray -> {
                     JsonObject profileData = new JsonObject();
                     profileData.put("value", "profile-" + ctx.pathParam("id"));
@@ -71,17 +75,18 @@ public class ProfileRxVerticle extends AbstractVerticle {
                     return profileData;
                 }).
                 subscribe(fullProfileData -> {
-                    ctx.response().
-                            setStatusCode(200).
-                            putHeader("Content-Type", "application/json").
-                            end(fullProfileData.encode());
-                }, error -> {
-                    LOG.error("Error obtaining user data", error);
-                    ctx.response().
-                            setStatusCode(500).
-                            putHeader("Content-Type", "application/json").
-                            end(error.getMessage());
-                });
+                              ctx.response().
+                                      setStatusCode(200).
+                                      putHeader("Content-Type", "application/json").
+                                      end(fullProfileData.encode());
+                          },
+                          error -> {
+                              LOG.error("Error obtaining user data", error);
+                              ctx.response().
+                                      setStatusCode(500).
+                                      putHeader("Content-Type", "application/json").
+                                      end(error.getMessage());
+                          });
 
     }
 
