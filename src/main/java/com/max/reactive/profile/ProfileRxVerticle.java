@@ -4,6 +4,7 @@ package com.max.reactive.profile;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.AbstractVerticle;
+import io.vertx.rxjava.core.RxHelper;
 import io.vertx.rxjava.core.eventbus.EventBus;
 import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
@@ -16,6 +17,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class ProfileRxVerticle extends AbstractVerticle {
 
@@ -27,9 +29,12 @@ public class ProfileRxVerticle extends AbstractVerticle {
     private static final Map<String, List<String>> profileIdToUsername = new HashMap<>();
 
     static {
-        profileIdToUsername.put("1", Arrays.asList("maksym", "olesia"));
-        profileIdToUsername.put("2", Arrays.asList("maksym", "zorro", "other1", "other2", "olesia",
-                                                   "other1", "other2", "olesia", "other1", "other2", "olesia"));
+        profileIdToUsername.put("1", Arrays.asList("maksym", "olesia", "other-0", "other-1", "other-2", "other-3",
+                                                   "other-4", "other-5"));
+
+        profileIdToUsername.put("2", Arrays.asList("maksym", "zorro", "other-1", "other-2", "olesia",
+                                                   "other-1", "other-2", "olesia", "other-1", "other-2", "olesia"));
+
         profileIdToUsername.put("3", Arrays.asList("other-1", "other-2"));
     }
 
@@ -71,16 +76,14 @@ public class ProfileRxVerticle extends AbstractVerticle {
         Observable.from(allUserNames).
                 flatMap(singleUserName -> bus.
                         rxSend("reactive-user/user", singleUserName).
-
-                        //TODO: not sure if we need below line
-//                        subscribeOn(Schedulers.io()).
-
-        map(msg -> (JsonObject) msg.body()).
-                                toObservable()).
+                        subscribeOn(RxHelper.scheduler(vertx)).
+                        timeout(500, TimeUnit.MILLISECONDS).
+                        retry().
+                        map(msg -> (JsonObject) msg.body()).toObservable()).
                 collect(JsonArray::new, JsonArray::add).
                 map(usersArray -> {
                     JsonObject profileData = new JsonObject();
-                    profileData.put("value", "profile-" + ctx.pathParam("id"));
+                    profileData.put("value", "profile-" + profileId);
                     profileData.put("users", usersArray);
                     return profileData;
                 }).
