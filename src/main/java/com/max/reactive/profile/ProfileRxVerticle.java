@@ -35,8 +35,9 @@ public class ProfileRxVerticle extends AbstractVerticle {
     public void start() {
         Router router = Router.router(vertx);
 
-        router.get("/user/health").handler(request -> {
+        router.get("/health").handler(request -> {
             JsonObject data = new JsonObject();
+            data.put("service_name", "reactive_profile");
             data.put("status", "healthy");
             request.response().
                     putHeader("Content-Type", "application/json").

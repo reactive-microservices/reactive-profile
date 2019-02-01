@@ -120,6 +120,7 @@
                             <ignoredDependencies>
                                 <ignoredDependency>ch.qos.logback:logback-classic:jar:${logback.version}</ignoredDependency>
                                 <ignoredDependency>ch.qos.logback:logback-core:jar:${logback.version}</ignoredDependency>
+                                <ignoredDependency>io.vertx:vertx-infinispan</ignoredDependency>
                             </ignoredDependencies>
                         </configuration>
                     </execution>
@@ -212,10 +213,6 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web-common</artifactId>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
