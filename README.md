@@ -17,11 +17,11 @@ mvn clean test -P integration
 
 Using maven:
 ```
-mvn compile vertx:run
+mvn compile vertx:run -Dvertx.runArgs="-cluster -Djava.net.preferIPv4Stack=true"
 ```
 Using fat jar file:
 ```
-java -jar target/reactive-profile-1.0.0-SNAPSHOT.jar
+java -jar target/reactive-profile-1.0.0-SNAPSHOT.jar --cluster -Djava.net.preferIPv4Stack=true
 ```
 
 Check service running:

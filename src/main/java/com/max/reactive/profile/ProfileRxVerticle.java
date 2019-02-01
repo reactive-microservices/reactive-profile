@@ -28,7 +28,9 @@ public class ProfileRxVerticle extends AbstractVerticle {
 
     static {
         profileIdToUsername.put("1", Arrays.asList("maksym", "olesia"));
-        profileIdToUsername.put("2", Arrays.asList("zorro", "other"));
+        profileIdToUsername.put("2", Arrays.asList("maksym", "zorro", "other1", "other2", "olesia",
+                                                   "other1", "other2", "olesia", "other1", "other2", "olesia"));
+        profileIdToUsername.put("3", Arrays.asList("other-1", "other-2"));
     }
 
     @Override
@@ -69,8 +71,12 @@ public class ProfileRxVerticle extends AbstractVerticle {
         Observable.from(allUserNames).
                 flatMap(singleUserName -> bus.
                         rxSend("reactive-user/user", singleUserName).
-                        map(msg -> (JsonObject) msg.body()).
-                        toObservable()).
+
+                        //TODO: not sure if we need below line
+//                        subscribeOn(Schedulers.io()).
+
+        map(msg -> (JsonObject) msg.body()).
+                                toObservable()).
                 collect(JsonArray::new, JsonArray::add).
                 map(usersArray -> {
                     JsonObject profileData = new JsonObject();
