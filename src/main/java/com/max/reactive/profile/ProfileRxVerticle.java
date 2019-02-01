@@ -4,15 +4,12 @@ package com.max.reactive.profile;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.AbstractVerticle;
+import io.vertx.rxjava.core.eventbus.EventBus;
 import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
-import io.vertx.rxjava.ext.web.client.HttpResponse;
-import io.vertx.rxjava.ext.web.client.WebClient;
-import io.vertx.rxjava.ext.web.codec.BodyCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Observable;
-import rx.schedulers.Schedulers;
+import rx.Single;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
@@ -34,18 +31,24 @@ public class ProfileRxVerticle extends AbstractVerticle {
         profileIdToUsername.put("2", Arrays.asList("zorro", "other"));
     }
 
-    private WebClient userClient;
-
     @Override
     public void start() {
-        userClient = WebClient.create(vertx);
         Router router = Router.router(vertx);
+
+        router.get("/user/health").handler(request -> {
+            JsonObject data = new JsonObject();
+            data.put("status", "healthy");
+            request.response().
+                    putHeader("Content-Type", "application/json").
+                    end(data.encode());
+        });
 
         router.get("/profile/:id").handler(this::gatherProfileInformation);
 
         vertx.createHttpServer().
                 requestHandler(router::accept).
                 listen(PORT);
+
 
         LOG.info("{} started at port {}", VERTEX_NAME, PORT);
     }
@@ -60,33 +63,58 @@ public class ProfileRxVerticle extends AbstractVerticle {
             return;
         }
 
-        Observable.from(allUserNames).
-                map(singleUserName -> userClient.get(7070, "localhost", "/user/" + singleUserName).as(BodyCodec.jsonObject())).
-                flatMap(httpReq ->
-                                httpReq.rxSend().
-                                        subscribeOn(Schedulers.io()).
-                                        map(HttpResponse::body).
-                                        toObservable()).
-                collect(JsonArray::new, JsonArray::add).
-                map(usersArray -> {
-                    JsonObject profileData = new JsonObject();
-                    profileData.put("value", "profile-" + ctx.pathParam("id"));
-                    profileData.put("users", usersArray);
-                    return profileData;
-                }).
-                subscribe(fullProfileData -> {
+        EventBus bus = vertx.eventBus();
+
+        Single<JsonObject> req1 =
+                bus.rxSend("reactive-user/user", "maksym").
+                        map(msg -> (JsonObject) msg.body());
+
+        Single<JsonObject> req2 =
+                bus.rxSend("reactive-user/user", "olesia").
+                        map(msg -> (JsonObject) msg.body());
+
+        Single.zip(req1, req2, (userData1, userData2) -> {
+            JsonArray usersArray = new JsonArray();
+            usersArray.add(userData1);
+            usersArray.add(userData2);
+            return usersArray;
+        }).
+                subscribe(usersData -> {
+                              JsonObject profileData = new JsonObject();
+                              profileData.put("value", "profile-" + ctx.pathParam("id"));
+                              profileData.put("users", usersData);
+
                               ctx.response().
                                       setStatusCode(200).
                                       putHeader("Content-Type", "application/json").
-                                      end(fullProfileData.encode());
+                                      end(profileData.encode());
                           },
-                          error -> {
-                              LOG.error("Error obtaining user data", error);
+                          err -> {
+                              LOG.error("Error obtaining user data", err);
                               ctx.response().
                                       setStatusCode(500).
                                       putHeader("Content-Type", "application/json").
-                                      end(error.getMessage());
+                                      end(err.getMessage());
                           });
+
+
+//        Observable.from(allUserNames).
+//                map(singleUserName -> userClient.get(7070, "localhost", "/user/" + singleUserName).as(BodyCodec.jsonObject
+//                ())).
+//                flatMap(httpReq ->
+//                                httpReq.rxSend().
+//                                        subscribeOn(Schedulers.io()).
+//                                        map(HttpResponse::body).
+//                                        toObservable()).
+//                collect(JsonArray::new, JsonArray::add).
+//                map(usersArray -> {
+//                    JsonObject profileData = new JsonObject();
+//                    profileData.put("value", "profile-" + ctx.pathParam("id"));
+//                    profileData.put("users", usersArray);
+//                    return profileData;
+//                }).
+//                subscribe(fullProfileData -> onSuccess(fullProfileData, ctx),
+//                          error -> onError(error, ctx));
 
     }
 
