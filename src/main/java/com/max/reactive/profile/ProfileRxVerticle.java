@@ -1,8 +1,10 @@
 package com.max.reactive.profile;
 
 
+import io.vertx.circuitbreaker.CircuitBreakerOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.rxjava.circuitbreaker.CircuitBreaker;
 import io.vertx.rxjava.core.AbstractVerticle;
 import io.vertx.rxjava.core.RxHelper;
 import io.vertx.rxjava.core.eventbus.EventBus;
@@ -71,36 +73,46 @@ public class ProfileRxVerticle extends AbstractVerticle {
             return;
         }
 
+        CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
+                                                       new CircuitBreakerOptions().
+                                                               setMaxFailures(2).
+                                                               setTimeout(1000).
+                                                               setFallbackOnFailure(true).
+                                                               setResetTimeout(5000));
+
+        breaker.execute(future -> {
+
+        }).setHandler(ar -> {
+        });
+
         EventBus bus = vertx.eventBus();
 
-        Observable.from(allUserNames).
+        Observable<JsonObject> userObs = Observable.from(allUserNames).
                 flatMap(singleUserName -> bus.
                         rxSend("reactive-user/user", singleUserName).
                         subscribeOn(RxHelper.scheduler(vertx)).
                         timeout(500, TimeUnit.MILLISECONDS).
-                        retry().
-                        map(msg -> (JsonObject) msg.body()).toObservable()).
-                collect(JsonArray::new, JsonArray::add).
-                map(usersArray -> {
-                    JsonObject profileData = new JsonObject();
-                    profileData.put("value", "profile-" + profileId);
-                    profileData.put("users", usersArray);
-                    return profileData;
-                }).
-                subscribe(fullProfileData -> {
-                              ctx.response().
-                                      setStatusCode(200).
-                                      putHeader("Content-Type", "application/json").
-                                      end(fullProfileData.encodePrettily());
-                          },
-                          error -> {
-                              LOG.error("Error obtaining user data", error);
-                              ctx.response().
-                                      setStatusCode(500).
-                                      putHeader("Content-Type", "application/json").
-                                      end(error.getMessage());
-                          });
+                        retry(1).
+                        map(msg -> (JsonObject) msg.body()).
+                        onErrorReturn(err -> {
+                            JsonObject userData = new JsonObject();
+                            userData.put("errorMessage", err.getMessage());
+                            return userData;
+                        }).
+                        toObservable());
 
+
+        Observable<JsonArray> usersArrObs = userObs.collect(JsonArray::new, JsonArray::add);
+
+        Observable<JsonObject> profileObs = usersArrObs.map(usersArray -> {
+            JsonObject profileData = new JsonObject();
+            profileData.put("value", "profile-" + profileId);
+            profileData.put("users", usersArray);
+            return profileData;
+        });
+
+        profileObs.subscribe(fullProfileData -> onSuccessProfile(fullProfileData, ctx),
+                             error -> onErrorProfile(error, ctx));
     }
 
     private void profileNotFound(String profileId, RoutingContext ctx) {
@@ -111,6 +123,22 @@ public class ProfileRxVerticle extends AbstractVerticle {
                 putHeader("Content-Type", "application/json").
                 end(errorData.encode());
     }
+
+    private static void onSuccessProfile(JsonObject fullProfileData, RoutingContext ctx) {
+        ctx.response().
+                setStatusCode(200).
+                putHeader("Content-Type", "application/json").
+                end(fullProfileData.encodePrettily());
+    }
+
+    private static void onErrorProfile(Throwable error, RoutingContext ctx) {
+        LOG.error("Error obtaining user data", error);
+        ctx.response().
+                setStatusCode(500).
+                putHeader("Content-Type", "application/json").
+                end(error.getMessage());
+    }
+
 
     @Override
     public void stop() {
