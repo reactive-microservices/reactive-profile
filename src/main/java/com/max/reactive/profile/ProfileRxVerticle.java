@@ -80,39 +80,37 @@ public class ProfileRxVerticle extends AbstractVerticle {
                                                                setFallbackOnFailure(true).
                                                                setResetTimeout(5000));
 
-        breaker.execute(future -> {
+        breaker.rxExecuteCommand(future -> {
+            EventBus bus = vertx.eventBus();
 
-        }).setHandler(ar -> {
-        });
-
-        EventBus bus = vertx.eventBus();
-
-        Observable<JsonObject> userObs = Observable.from(allUserNames).
-                flatMap(singleUserName -> bus.
-                        rxSend("reactive-user/user", singleUserName).
-                        subscribeOn(RxHelper.scheduler(vertx)).
-                        timeout(500, TimeUnit.MILLISECONDS).
-                        retry(1).
-                        map(msg -> (JsonObject) msg.body()).
-                        onErrorReturn(err -> {
-                            JsonObject userData = new JsonObject();
-                            userData.put("errorMessage", err.getMessage());
-                            return userData;
-                        }).
-                        toObservable());
+            Observable<JsonObject> userObs = Observable.from(allUserNames).
+                    flatMap(singleUserName -> bus.
+                            rxSend("reactive-user/user", singleUserName).
+//                            subscribeOn(RxHelper.scheduler(vertx)).
+//                            timeout(500, TimeUnit.MILLISECONDS).
+//                            retry(1).
+                            map(msg -> (JsonObject) msg.body()).
+                            onErrorReturn(err -> {
+                                JsonObject userData = new JsonObject();
+                                userData.put("errorMessage", err.getMessage());
+                                return userData;
+                            }).
+                            toObservable());
 
 
-        Observable<JsonArray> usersArrObs = userObs.collect(JsonArray::new, JsonArray::add);
+            Observable<JsonArray> usersArrObs = userObs.collect(JsonArray::new, JsonArray::add);
 
-        Observable<JsonObject> profileObs = usersArrObs.map(usersArray -> {
-            JsonObject profileData = new JsonObject();
-            profileData.put("value", "profile-" + profileId);
-            profileData.put("users", usersArray);
-            return profileData;
-        });
+            Observable<JsonObject> profileObs = usersArrObs.map(usersArray -> {
+                JsonObject profileData = new JsonObject();
+                profileData.put("value", "profile-" + profileId);
+                profileData.put("users", usersArray);
+                return profileData;
+            });
 
-        profileObs.subscribe(fullProfileData -> onSuccessProfile(fullProfileData, ctx),
-                             error -> onErrorProfile(error, ctx));
+            profileObs.subscribe(future::complete, future::fail);
+
+        }).subscribe(fullProfileData -> onSuccessProfile((JsonObject) fullProfileData, ctx),
+                     error -> onErrorProfile(error, ctx));
     }
 
     private void profileNotFound(String profileId, RoutingContext ctx) {
