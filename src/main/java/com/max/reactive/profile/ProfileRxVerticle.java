@@ -6,7 +6,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.circuitbreaker.CircuitBreaker;
 import io.vertx.rxjava.core.AbstractVerticle;
-import io.vertx.rxjava.core.RxHelper;
 import io.vertx.rxjava.core.eventbus.EventBus;
 import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
@@ -19,7 +18,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class ProfileRxVerticle extends AbstractVerticle {
 
@@ -73,22 +71,19 @@ public class ProfileRxVerticle extends AbstractVerticle {
             return;
         }
 
-        CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
+        CircuitBreaker breaker = CircuitBreaker.create("profile-call-user-circuit-breaker", vertx,
                                                        new CircuitBreakerOptions().
-                                                               setMaxFailures(2).
+                                                               setMaxFailures(1).
                                                                setTimeout(1000).
                                                                setFallbackOnFailure(true).
                                                                setResetTimeout(5000));
 
-        breaker.rxExecuteCommand(future -> {
+        breaker.rxExecuteCommandWithFallback(future -> {
             EventBus bus = vertx.eventBus();
 
             Observable<JsonObject> userObs = Observable.from(allUserNames).
                     flatMap(singleUserName -> bus.
                             rxSend("reactive-user/user", singleUserName).
-//                            subscribeOn(RxHelper.scheduler(vertx)).
-//                            timeout(500, TimeUnit.MILLISECONDS).
-//                            retry(1).
                             map(msg -> (JsonObject) msg.body()).
                             onErrorReturn(err -> {
                                 JsonObject userData = new JsonObject();
@@ -96,7 +91,6 @@ public class ProfileRxVerticle extends AbstractVerticle {
                                 return userData;
                             }).
                             toObservable());
-
 
             Observable<JsonArray> usersArrObs = userObs.collect(JsonArray::new, JsonArray::add);
 
@@ -109,8 +103,9 @@ public class ProfileRxVerticle extends AbstractVerticle {
 
             profileObs.subscribe(future::complete, future::fail);
 
-        }).subscribe(fullProfileData -> onSuccessProfile((JsonObject) fullProfileData, ctx),
-                     error -> onErrorProfile(error, ctx));
+        }, notUsed -> new JsonObject().put("profile", "<no data>"))
+                .subscribe(fullProfileData -> onSuccessProfile(fullProfileData, ctx),
+                           error -> onErrorProfile(error, ctx));
     }
 
     private void profileNotFound(String profileId, RoutingContext ctx) {
