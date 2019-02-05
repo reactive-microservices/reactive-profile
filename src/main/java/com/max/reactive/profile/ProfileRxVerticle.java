@@ -4,6 +4,7 @@ package com.max.reactive.profile;
 import io.vertx.circuitbreaker.CircuitBreakerOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.rx.java.RxHelper;
 import io.vertx.rxjava.circuitbreaker.CircuitBreaker;
 import io.vertx.rxjava.core.AbstractVerticle;
 import io.vertx.rxjava.core.eventbus.EventBus;
@@ -18,6 +19,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class ProfileRxVerticle extends AbstractVerticle {
 
@@ -29,13 +32,13 @@ public class ProfileRxVerticle extends AbstractVerticle {
     private static final Map<String, List<String>> profileIdToUsername = new HashMap<>();
 
     static {
-        profileIdToUsername.put("1", Arrays.asList("maksym", "olesia", "other-0", "other-1", "other-2", "other-3",
-                                                   "other-4", "other-5"));
+        profileIdToUsername.put("1", Arrays.asList("maksym", "olesia"));
 
-        profileIdToUsername.put("2", Arrays.asList("maksym", "zorro", "other-1", "other-2", "olesia",
-                                                   "other-1", "other-2", "olesia", "other-1", "other-2", "olesia"));
+        profileIdToUsername.put("2", Arrays.asList("maksym", "unknown-user-123"));
 
-        profileIdToUsername.put("3", Arrays.asList("other-1", "other-2"));
+        profileIdToUsername.put("3", IntStream.range(0, 50).
+                mapToObj(value -> "other-" + value).
+                collect(Collectors.toList()));
     }
 
     @Override
@@ -73,8 +76,8 @@ public class ProfileRxVerticle extends AbstractVerticle {
 
         CircuitBreaker breaker = CircuitBreaker.create("profile-call-user-circuit-breaker", vertx,
                                                        new CircuitBreakerOptions().
-                                                               setMaxFailures(1).
-                                                               setTimeout(1000).
+                                                               setMaxFailures(5).
+                                                               setTimeout(2000).
                                                                setFallbackOnFailure(true).
                                                                setResetTimeout(5000));
 
@@ -84,6 +87,7 @@ public class ProfileRxVerticle extends AbstractVerticle {
             Observable<JsonObject> userObs = Observable.from(allUserNames).
                     flatMap(singleUserName -> bus.
                             rxSend("reactive-user/user", singleUserName).
+                            observeOn(RxHelper.scheduler(vertx.getDelegate())).
                             map(msg -> (JsonObject) msg.body()).
                             onErrorReturn(err -> {
                                 JsonObject userData = new JsonObject();
