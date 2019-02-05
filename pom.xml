@@ -121,6 +121,7 @@
                                 <ignoredDependency>ch.qos.logback:logback-classic:jar:${logback.version}</ignoredDependency>
                                 <ignoredDependency>ch.qos.logback:logback-core:jar:${logback.version}</ignoredDependency>
                                 <ignoredDependency>io.vertx:vertx-infinispan</ignoredDependency>
+                                <ignoredDependency>io.vertx:vertx-circuit-breaker</ignoredDependency>
                             </ignoredDependencies>
                         </configuration>
                     </execution>

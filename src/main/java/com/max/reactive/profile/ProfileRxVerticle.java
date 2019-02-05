@@ -1,11 +1,8 @@
 package com.max.reactive.profile;
 
 
-import io.vertx.circuitbreaker.CircuitBreakerOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.rx.java.RxHelper;
-import io.vertx.rxjava.circuitbreaker.CircuitBreaker;
 import io.vertx.rxjava.core.AbstractVerticle;
 import io.vertx.rxjava.core.eventbus.EventBus;
 import io.vertx.rxjava.ext.web.Router;
@@ -19,6 +16,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -74,42 +72,31 @@ public class ProfileRxVerticle extends AbstractVerticle {
             return;
         }
 
-        CircuitBreaker breaker = CircuitBreaker.create("profile-call-user-circuit-breaker", vertx,
-                                                       new CircuitBreakerOptions().
-                                                               setMaxFailures(5).
-                                                               setTimeout(2000).
-                                                               setFallbackOnFailure(true).
-                                                               setResetTimeout(5000));
+        EventBus bus = vertx.eventBus();
 
-        breaker.rxExecuteCommandWithFallback(future -> {
-            EventBus bus = vertx.eventBus();
+        Observable<JsonObject> userObs = Observable.from(allUserNames).
+                flatMap(singleUserName -> bus.
+                        rxSend("reactive-user/user", singleUserName).
+                        timeout(1, TimeUnit.SECONDS).
+                        map(msg -> (JsonObject) msg.body()).
+                        onErrorReturn(err -> {
+                            JsonObject userData = new JsonObject();
+                            userData.put("errorMessage", err.getMessage());
+                            return userData;
+                        }).
+                        toObservable());
 
-            Observable<JsonObject> userObs = Observable.from(allUserNames).
-                    flatMap(singleUserName -> bus.
-                            rxSend("reactive-user/user", singleUserName).
-                            observeOn(RxHelper.scheduler(vertx.getDelegate())).
-                            map(msg -> (JsonObject) msg.body()).
-                            onErrorReturn(err -> {
-                                JsonObject userData = new JsonObject();
-                                userData.put("errorMessage", err.getMessage());
-                                return userData;
-                            }).
-                            toObservable());
+        Observable<JsonArray> usersArrObs = userObs.collect(JsonArray::new, JsonArray::add);
 
-            Observable<JsonArray> usersArrObs = userObs.collect(JsonArray::new, JsonArray::add);
+        Observable<JsonObject> profileObs = usersArrObs.map(usersArray -> {
+            JsonObject profileData = new JsonObject();
+            profileData.put("value", "profile-" + profileId);
+            profileData.put("users", usersArray);
+            return profileData;
+        });
 
-            Observable<JsonObject> profileObs = usersArrObs.map(usersArray -> {
-                JsonObject profileData = new JsonObject();
-                profileData.put("value", "profile-" + profileId);
-                profileData.put("users", usersArray);
-                return profileData;
-            });
-
-            profileObs.subscribe(future::complete, future::fail);
-
-        }, notUsed -> new JsonObject().put("profile", "<no data>"))
-                .subscribe(fullProfileData -> onSuccessProfile(fullProfileData, ctx),
-                           error -> onErrorProfile(error, ctx));
+        profileObs.subscribe(fullProfileData -> onSuccessProfile(fullProfileData, ctx),
+                             error -> onErrorProfile(error, ctx));
     }
 
     private void profileNotFound(String profileId, RoutingContext ctx) {
